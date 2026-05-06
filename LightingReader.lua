@@ -16,7 +16,7 @@ NextTime = NextTime or 0
 Offset=0
 CurTime=0
 LastTime = 0
-EventsHash=0
+EventsList=0
 DisplayedLighting = ''
 Step = 1
 MaxSteps = 1
@@ -111,7 +111,7 @@ local function updEvents(take)
     
     VenueTrack = FindTrack(SelectedTrack)
     if not VenueTrack or rp.CountTrackMediaItems(VenueTrack) == 0 then
-        EventsHash = "" 
+        EventsList = "" 
         DisplayedLighting = "test"
     else
         local midi_item = nil
@@ -122,7 +122,7 @@ local function updEvents(take)
             if take and rp.TakeIsMIDI(take) then
 
                 local _,hash=rp.MIDI_GetHash(take,false)
-                if EventsHash~=hash then
+                if EventsList~=hash then
                     --rp.ClearConsole()
                     LightEvts={}
                     _,_,_,EventCount = rp.MIDI_CountEvts(take)
@@ -151,7 +151,7 @@ local function updEvents(take)
                             return
                         end
                     end
-                    EventsHash=hash
+                    EventsList=hash
                 end
             end
         end
@@ -414,7 +414,9 @@ local function loop()
     if mouse_now == 1 and Mouse_last_state == 0 then
         if gfx.mouse_x > 45 and gfx.mouse_x < 45 + btnWidth + 10 and gfx.mouse_y > 25 and gfx.mouse_y < 55 then
             SelectedTrackIndex = SelectedTrackIndex + 1
-            if SelectedTrackIndex > #TrackOptions then SelectedTrackIndex = 1 end
+            if SelectedTrackIndex > #TrackOptions then
+                SelectedTrackIndex = 1
+                end
             SelectedTrack = TrackOptions[SelectedTrackIndex]
         end
     end
