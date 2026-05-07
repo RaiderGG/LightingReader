@@ -53,7 +53,7 @@ local lighting = { --each step in every lighting effect (or at least my try)
     dischord =          {{2,5,6,2,2,2},{8,2,8,2,8,2}},
     stomp =             {{2,1,1,2,1,1},{2,2,2,2,2,2}},
     loop_cool =         {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    loop_warm =         {{2,7,2,8,7,2},{8,2,7,2,2,2}},
+    loop_warm =         {{2,9,2,4,9,2},{4,2,9,2,2,2}},
     harmony =           {{2,7,2,8,7,2},{8,2,7,2,2,2}},
     frenzy =            {{2,7,2,8,7,2},{8,2,7,2,2,2}},
     silhouettes =       {{2,7,2,8,7,2},{8,2,7,2,2,2}},
@@ -253,8 +253,17 @@ local function colorInterpolation(c1, c2, t)
     return r, g, b, a
 end
 
-
+local function fadeInterpolation(c1, c2, t)
+    c1 = type(c1) == "table" and c1 or {0, 0, 0, 1}
+    c2 = type(c2) == "table" and c2 or {0, 0, 0, 1}
+    local r = c1[1] + (c2[1] - c1[1]) * t
+    local g = c1[2] + (c2[2] - c1[2]) * t
+    local b = c1[3] + (c2[3] - c1[3]) * t
+    local a = c1[4] + (c2[4] - c1[4]) * t
+    return r, g, b, a
+end
 local function drawDotMatrix(x0, y0, radius, spacing, mode)
+    local autoColor = {}
     local groupTable = Stage.Center
     local pattern = lighting[DisplayedLighting]
     if type(pattern) ~= "table" or not pattern[Step] then return end
@@ -272,6 +281,8 @@ local function drawDotMatrix(x0, y0, radius, spacing, mode)
         for col = 1, #groupTable[row] do
             local groupID = groupTable[row][col]
             local r, g, b, a
+            local fcolorA
+            local fcolorB
                 
             if mode == "flash" then
                 local flashOn = math.floor((CurTime * bpm / 60) * 2) % 2 == 0
@@ -316,11 +327,12 @@ local function drawDotMatrix(x0, y0, radius, spacing, mode)
                 local colorA = pallete[pattern[Step][groupID] or 1]
                 local colorB = pallete[pattern[nextStep][groupID] or 1]
 
-                local bpm = rp.Master_GetTempo()
-                local FadeDuration = (60 / bpm) *0.75
+                local bpm = (rp.Master_GetTempo()/2)
+                local FadeDuration = (60 / bpm) *0.7
                 local t = math.min((CurTime - StepTime) / FadeDuration, 1)
-
                 r, g, b, a = colorInterpolation(colorA, colorB, t)
+                autoColor = table.pack(r, g, b, a)
+
             elseif mode == "static" then-- default, static
                 local colorIndex = stepColors[groupID]
                 r, g, b, a = table.unpack(pallete[colorIndex])
@@ -329,12 +341,16 @@ local function drawDotMatrix(x0, y0, radius, spacing, mode)
             for _, fade in ipairs(DetectedFades) do
                 if DisplayedLighting == fade.from and CurTime >= fade.startTime and CurTime <= fade.endTime then
                     Fade = true
-                    local colorA = pallete[stepColors[groupID] or 1]
+                    if mode== "auto" then
+                        fcolorA = autoColor
+                    else
+                        fcolorA = pallete[stepColors[groupID] or 1]
+                    end
+                    
                     local nextStepColors = lighting[fade.to] and lighting[fade.to][1] or {}
-                    local colorB = pallete[nextStepColors[groupID] or 1] or {0, 0, 0, 1}
-
+                    fcolorB = pallete[nextStepColors[groupID] or 1] or {0, 0, 0, 1}
                     local t = math.min((CurTime - fade.startTime) / (fade.endTime - fade.startTime), 1)
-                    r, g, b, a = colorInterpolation(colorA, colorB, t)
+                    r, g, b, a = fadeInterpolation(fcolorA, fcolorB, t)
                     break -- only apply the first active fade
                 end
             end
@@ -396,13 +412,13 @@ local function loop()
     end
     local mode = LightingMode[DisplayedLighting] or LightingMode.default
 
-    LoopStepDuration = (60 / bpm) * 2
-    FadeDuration = (60 / bpm) *0.35
+    LoopStepDuration = (60 / bpm) * 4
+    FadeDuration = (60 / bpm) *0.7
 
 
 
     gfx.setfont(1, "Arial", 20)
-    gfx.set(0.29, 0.33, 0.41, 1)
+    gfx.set(0.24, 0.24, 0.24, 1)
     gfx.rect(0, 0, gfx.w, gfx.h, 1)
 
     -- Track Change Button
@@ -423,9 +439,9 @@ local function loop()
                 end
             SelectedTrack = TrackOptions[SelectedTrackIndex]
             
-            rp.ClearConsole()
-            rp.ShowConsoleMsg("\nhash:" .. EventsHash)
-            rp.ShowConsoleMsg("\nEvents:" .. EventCount .. "\n")
+            --rp.ClearConsole()
+            --rp.ShowConsoleMsg("\nhash:" .. EventsHash)
+            --rp.ShowConsoleMsg("\nEvents:" .. EventCount .. "\n")
         end
     end
     Mouse_last_state = mouse_now
