@@ -1,22 +1,21 @@
 # LightingPreview
 A ReaScript made for previewing Lighting events on Rock Band charts
 
-<img width="1002" height="432" alt="image" src="https://github.com/user-attachments/assets/384c8ed1-69bd-4b03-a617-6eba911ea837" />
+<img width="1002" height="432" alt="image" src="https://github.com/user-attachments/assets/62b3390c-9677-46f2-b91e-f52e95c2a47e" />
 
-
-<br/>
+\
 It has support for manual and auto lighting events, as such as fades.
-<br/>
-<br/>
+  
+  
 
 # Modes
 This script is able to read the events from the VENUE or LIGHTING tracks. You can toggle between each mode using the "Track:" button.
 
-<img width="1002" height="432" alt="image" src="https://github.com/user-attachments/assets/9cdc7982-f57e-4b9f-a8f8-5a5073b841c9" />
+<img width="1002" height="432" alt="image" src="https://github.com/user-attachments/assets/9cdc7982-f57e-4b9f-a8f8-5a5073b841c9" />  
 
-
-VENUE Track mode.<br/>
-<br/>
+\
+VENUE Track mode.\
+\
 <img width="1002" height="432" alt="image" src="https://github.com/user-attachments/assets/232f9295-1299-42ed-ad23-752b5d9f00b2" />
 
 LIGHTING track mode.
