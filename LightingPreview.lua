@@ -130,7 +130,8 @@ local function updEvents(take)
                     rp.ShowConsoleMsg("hash: " .. EventsHash .. "\n")
                     CycleEvts = {}
                     LightEvts={}
-                    EventCount= 0
+                    EventCount = 0
+                    EventsHash=hash
                     _,_,_,EventCount = rp.MIDI_CountEvts(take)
                     if EventCount == 0 then
                         return
@@ -150,7 +151,7 @@ local function updEvents(take)
                         end
                         
                     end
-                    EventsHash=hash
+                    
                     
                 end
             end
