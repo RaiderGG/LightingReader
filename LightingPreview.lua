@@ -1,8 +1,10 @@
 -- Setting directories for ImGui and scripts
+Versionnum = "1.0"
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua'
 local ImGui = require 'imgui' '0.9.3'
 local rp = reaper
 local gfx = require "gfx2imgui"
+local script_folder = string.gsub(debug.getinfo(1).source:match("@?(.*[\\|/])"),"\\","/")
 
 --Variables
 TrackOptions = {"VENUE", "LIGHTING"}
@@ -13,8 +15,7 @@ CycleEvts = {}
 PrevName = PrevName or ""
 NextLighting = NextLighting or ""
 NextTime = NextTime or 0
-Offset=0
-CurTime=0
+CurPos=0
 LastTime = 0
 EventsHash=0
 DisplayedLighting = ''
@@ -24,67 +25,68 @@ StepTime = 0
 local lastCycleIndex = 0
 local radius= 18
 local distance = 55
-local bpm = reaper.Master_GetTempo()
-local LoopStepTime = 0
-local LoopStepDuration = 0
+LoopStepTime = 0.0000000000
+LoopStepDuration = 0.000000000000
+Bpm=0.0000000000
 
-Stage= {Center={{1,2,3,4,6,5,5,6,4,3,2,1},
-                {1,2,3,4,6,5,5,6,4,3,2,1},
-                {1,2,3,4,6,6,6,6,4,3,2,1},
-                {1,2,3,4,6,6,6,6,4,3,2,1}}}
+Stage= {Center={{1,2,3,4,6,5,5,6,7,8,9,10},
+                {1,2,3,4,6,5,5,6,7,8,9,10},
+                {1,2,3,4,6,6,6,6,7,8,9,10},
+                {1,2,3,4,6,6,6,6,7,8,9,10}}}
 
 local pallete = {
-    {1,     1,      1,      1},      --1 white
-    {0,     0,      0,      1},      --2 black
-    {1,     0,      0,      1},      --3 red
-    {1,     0.64,   0.1,    1},      --4 orange
-    {1,     0.92,   0.3,    1},      --5 yellow
-    {0,     1,      0,      1},      --6 green
-    {0,     1,      1,      1},      --7 cyan
-    {0,     0,      1,      1},      --8 blue
-    {0.941, 0.824,  0.855,  1}       --9 pink
+    {1,     1,      1,       1},      --1 white
+    {0,     0,      0,       0},      --2 black
+    {1,     0.20,   0.20,    1},      --3 red
+    {1,     0.74,   0.2,     1},      --4 orange
+    {1,     0.92,   0.4,     1},      --5 yellow
+    {0.4,   1,      0.6,     1},      --6 green
+    {0.20,  1,      1,       1},      --7 cyan
+    {0.20,  0.20,   1,       1},      --8 blue
+    {0.941, 0.76,   0.89,    1},      --9 pink
+    {0.5,   1,      0.75,    1},      --10 light_green
+    {1,     0.45,   0.89,    1}       --11 magenta
 }
 
 local lighting = { --each step in every lighting effect (or at least my try)
-    verse =             {{2,4,2,6,4,2},{6,2,4,2,2,2}},
-    chorus =            {{3,2,2,8,3,2},{8,3,8,2,2,2}},
-    manual_cool =       {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    manual_warm =       {{4,9,4,9,4,2},{9,4,9,2,2,2}},
-    dischord =          {{2,5,6,2,2,2},{8,2,8,2,8,2}},
-    stomp =             {{2,1,1,2,1,1},{2,2,2,2,2,2}},
-    loop_cool =         {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    loop_warm =         {{2,9,2,4,9,2},{4,2,9,2,2,2}},
-    harmony =           {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    frenzy =            {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    silhouettes =       {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    silhouettes_spot =  {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    searchlights =      {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    sweep =             {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    strobe_slow =       {{2,1,1,2,1,1},{2,2,2,2,2,2}},
-    strobe_fast =       {{2,1,1,2,1,1},{2,2,2,2,2,2}},
-    blackout_slow =     {{2,2,2,2,2,2}},
-    blackout_fast =     {{2,2,2,2,2,2}},
-    blackout_spot =     {{2,2,2,2,2,2}},
-    flare_slow =        {{1,1,1,1,1,1}},
-    flare_fast =        {{1,1,1,1,1,1}},
-    bre =               {{2,7,2,8,7,2},{8,2,7,2,2,2}},
-    none =              {{2,2,2,2,2,2}},
-    intro =             {{2,2,2,2,2,2}}
+    verse =             {{2,4,2,6,4,2,6,2,4,2},{6,2,4,2,2,2,2,4,2,6}},
+    chorus =            {{3,2,2,8,3,2,8,2,2,3},{8,3,8,2,2,2,2,8,3,8}},
+    manual_cool =       {{2,7,2,8,7,2,8,2,7,2},{8,2,7,2,2,2,2,7,2,8}},
+    manual_warm =       {{4,9,4,9,4,2,9,4,9,4},{9,4,9,2,2,2,2,9,4,9}},
+    dischord =          {{2,5,6,2,2,2,2,6,5,2},{8,2,8,2,8,2,2,8,2,8}},
+    stomp =             {{2,1,1,2,1,1,2,1,1,2},{2,2,2,2,2,2,2,2,2,2}},
+    loop_cool =         {{2,7,2,8,7,2,8,2,7,2},{8,2,7,2,2,2,2,7,2,8}},
+    loop_warm =         {{2,9,2,4,9,2,4,2,9,2},{4,2,9,2,2,2,2,9,2,4}},
+    harmony =           {{2,4,4,9,9,2,9,4,4,2},{9,4,4,2,9,9,2,4,4,9}},
+    frenzy =            {{3,2,4,5,3,2,5,4,2,3},{6,4,6,6,6,2,6,6,4,6},{9,8,8,8,2,8,8,8,8,9}},
+    silhouettes =       {{10,10,10,10,10,10,10,10,10,10}},
+    silhouettes_spot =  {{10,10,10,10,10,10,10,10,10,10}},
+    searchlights =      {{1,1,1,1,2,2,2,2,2,2},{2,2,2,2,2,2,1,1,1,1}},
+    sweep =             {{11,1,2,2,2,2,2,2,1,11},{2,2,11,2,11,1,2,11,2,2},{2,2,2,11,1,2,11,2,2,2},{2,11,11,1,2,2,1,11,11,2}},
+    strobe_slow =       {{1,1,2,2,2,2,2,2,1,1},{2,2,2,2,2,2,2,2,2,2},{2,2,1,1,2,2,1,1,2,2},{2,2,2,2,2,2,2,2,2,2},{2,2,2,2,1,1,2,2,2,2,2},{2,2,2,2,2,2,2,2,2,2},{1,1,2,2,2,2,2,2,1,1},{2,2,2,2,2,2,2,2,2,2}},
+    strobe_fast =       {{1,1,2,2,2,2,2,2,1,1},{2,2,2,2,2,2,2,2,2,2},{2,2,1,1,2,2,1,1,2,2},{2,2,2,2,2,2,2,2,2,2},{2,2,2,2,1,1,2,2,2,2,2},{2,2,2,2,2,2,2,2,2,2},{1,1,2,2,2,2,2,2,1,1},{2,2,2,2,2,2,2,2,2,2}},
+    blackout_slow =     {{2,2,2,2,2,2,2,2,2,2}},
+    blackout_fast =     {{2,2,2,2,2,2,2,2,2,2}},
+    blackout_spot =     {{2,2,2,2,2,2,2,2,2,2}},
+    flare_slow =        {{1,1,1,1,1,1,1,1,1,1}},
+    flare_fast =        {{1,1,1,1,1,1,1,1,1,1}},
+    bre =               {{3,2,4,5,3,2,5,4,2,3},{6,4,6,6,6,2,6,6,4,6},{9,8,8,8,2,8,8,8,8,9}},
+    none =              {{2,2,2,2,2,2,2,2,2,2}},
+    intro =             {{2,2,2,2,2,2,2,2,2,2}}
 }
 local pattern = ((lighting[DisplayedLighting]))
 
 local LightingMode = {
     loop_warm = "auto",
     loop_cool = "auto",
-    sweep = "auto",
+    sweep = "automid",
     harmony = "auto",
-    silhouettes = "auto",
-    silhouettes_spot = "auto",
-    searchlights = "auto",
-    strobe_fast = "strobe_1_8",
-    strobe_slow = "strobe_1_16",
-    flare_slow = "pulse",  
-    default = "static",
+    frenzy = "autofast",
+    searchlights = "automid",
+    strobe_fast = "strobe_16",
+    strobe_slow = "strobe_8",
+    bre = "bre",
+    default = "manual"
 }
 
 gfx.init("LightingPreview", 1000, 400)
@@ -108,7 +110,6 @@ end
 
 
 local function updEvents(take)
-    
     VenueTrack = FindTrack(SelectedTrack)
     if not VenueTrack or rp.CountTrackMediaItems(VenueTrack) == 0 then
         EventsHash = "" 
@@ -127,8 +128,9 @@ local function updEvents(take)
                     --rp.ClearConsole()
                     rp.ShowConsoleMsg("reset\n")
                     rp.ShowConsoleMsg("hash: " .. EventsHash .. "\n")
-                    
+                    CycleEvts = {}
                     LightEvts={}
+                    EventCount= 0
                     _,_,_,EventCount = rp.MIDI_CountEvts(take)
                     if EventCount == 0 then
                         return
@@ -158,27 +160,7 @@ local function updEvents(take)
     
 end
 
-local function compareCycle()
-    local pattern = lighting[DisplayedLighting]
-    if type(pattern) ~= "table" then
-        MaxSteps = 1
-    else
-        MaxSteps = #pattern
-        for i = 1, #CycleEvts do
-            local CycleTime = CycleEvts[i][1]
-            if CycleTime > LastTime and CycleTime <= CurTime then
-                Step = Step + 1
-                if Step > MaxSteps then Step = 1 end
-                --rp.ShowConsoleMsg("[next] crossed at: " .. tostring(CycleTime) .. "\n")
-                LastTime = CurTime
-            end
-        end
-    end
-    
-    
-end
-
-local function compareLighting()
+local function parseLighting()
         local activeLighting = tostring(LightEvts[1][2]) or "none"
         local nextLighting, nextTime
 
@@ -188,7 +170,7 @@ local function compareLighting()
             for i = 1, #LightEvts do
                 local LightingTime = LightEvts[i][1]
                 local LightingName = LightEvts[i][2]
-                if LightingTime <= CurTime then
+                if LightingTime <= CurPos then
                     activeLighting = LightingName
                     if i < #LightEvts then
                         nextTime, nextLighting = table.unpack(LightEvts[i + 1])
@@ -217,8 +199,8 @@ local function compareLighting()
         -- Detect event changes
         if DisplayedLighting ~= activeLighting then
             Step = 1
-            StepTime = CurTime
-            LoopStepTime = CurTime
+            StepTime = CurPos
+            LoopStepTime = CurPos
         end
 
         DetectedFades = {}
@@ -244,8 +226,8 @@ local function compareLighting()
     end
 
 local function colorInterpolation(c1, c2, t)
-    c1 = type(c1) == "table" and c1 or {0, 0, 0, 1}
-    c2 = type(c2) == "table" and c2 or {0, 0, 0, 1}
+    c1 = type(c1) == "table" and c1 or {0, 0, 0, 0}
+    c2 = type(c2) == "table" and c2 or {0, 0, 0, }
     local r = c1[1] + (c2[1] - c1[1]) * t
     local g = c1[2] + (c2[2] - c1[2]) * t
     local b = c1[3] + (c2[3] - c1[3]) * t
@@ -270,7 +252,7 @@ local function drawDotMatrix(x0, y0, radius, spacing, mode)
     
     local nextStep = Step + 1
     if nextStep > #pattern then nextStep = 1 end
-    local t = math.min((CurTime - StepTime) / FadeDuration, 1)
+    
     
 
     local stepColors = pattern[Step]
@@ -284,62 +266,68 @@ local function drawDotMatrix(x0, y0, radius, spacing, mode)
             local fcolorA
             local fcolorB
                 
-            if mode == "flash" then
-                local flashOn = math.floor((CurTime * bpm / 60) * 2) % 2 == 0
-                local colorIndex = flashOn and stepColors[groupID] or 2 -- negro como apagado
-                r, g, b, a = table.unpack(pallete[colorIndex])
-
-            elseif mode == "pulse" then
-                local pulse = 0.5 + 0.5 * math.sin(CurTime * bpm / 60 * math.pi)
-                local baseColor = pallete[stepColors[groupID] or 1]
-                r = baseColor[1] * pulse
-                g = baseColor[2] * pulse
-                b = baseColor[3] * pulse
-                a = baseColor[4]
-
-            elseif mode == "wave" then
-                local wavePhase = math.sin((CurTime * bpm / 60 * math.pi) + col * 0.5)
-                local intensity = 0.5 + 0.5 * wavePhase
-                local baseColor = pallete[stepColors[groupID] or 1]
-                r = baseColor[1] * intensity
-                g = baseColor[2] * intensity
-                b = baseColor[3] * intensity
-                a = baseColor[4]
-                
-            elseif mode == "strobe_1_8" or mode == "strobe_1_16" then
-                local flashesPerBeat = (mode == "strobe_1_16") and 2 or 4
-                local flashOn = math.floor((CurTime * bpm / 60) * flashesPerBeat) % 2 == 0
-
-                local colorIndex = flashOn and stepColors[groupID] or 2 -- 2 = negro o apagado
-                local color = pallete[colorIndex] or {0, 0, 0, 1}
-
-                r, g, b, a = table.unpack(color)
-
-            elseif mode == "auto" then
-                -- Auto Mode
-                if CurTime - LoopStepTime >= LoopStepDuration then
+            if mode == "strobe_8" or mode == "strobe_16" then
+                if mode == "strobe_16" then
+                    LoopStepDuration = (60 / Bpm)/2.2
+                else
+                    LoopStepDuration = (60 / Bpm)/1.05
+                end
+                if CurPos - LoopStepTime >= LoopStepDuration then
                     Step = Step + 1
                     if Step > #pattern then Step = 1 end
-                    LoopStepTime = CurTime
-                    StepTime = CurTime
+                    LoopStepTime = CurPos
                 end
+                local colorIndex = stepColors[groupID]
+                r, g, b, a = table.unpack(pallete[colorIndex])
 
+            elseif mode == "auto" or mode == "autofast" or mode == "automid" or mode == "bre" then
+                
+                -- Auto Mode
+                if mode == "autofast" then
+                    LoopStepDuration = (60 / Bpm)/1.63
+                    FadeDuration = (60 / Bpm*2)/5
+                elseif mode == "automid" then
+                    LoopStepDuration = (60 / Bpm)*1.95
+                    FadeDuration = (60 / Bpm/2)*2
+                elseif mode == "bre" then
+                    LoopStepDuration = (60 / Bpm)/3
+                    FadeDuration = (60 / Bpm*2)/8
+                else
+                    LoopStepDuration = (60 / Bpm)*4
+                    FadeDuration = (60 / Bpm/2) *1.2
+                end
+                if CurPos - LoopStepTime >= LoopStepDuration then
+                    Step = Step + 1
+                    if Step > #pattern then Step = 1 end
+                    LoopStepTime = CurPos
+                    StepTime = CurPos
+                end
                 local colorA = pallete[pattern[Step][groupID] or 1]
                 local colorB = pallete[pattern[nextStep][groupID] or 1]
-
-                local bpm = (rp.Master_GetTempo()/2)
-                local FadeDuration = (60 / bpm) *0.7
-                local t = math.min((CurTime - StepTime) / FadeDuration, 1)
-                r, g, b, a = colorInterpolation(colorA, colorB, t)
+                local t2 = math.min((CurPos - StepTime) / FadeDuration, 1)
+                
+                r, g, b, a = colorInterpolation(colorA, colorB, t2)
                 autoColor = table.pack(r, g, b, a)
 
-            elseif mode == "static" then-- default, static
+            elseif mode == "manual" then-- default, manual
+                if type(pattern) ~= "table" then
+                    MaxSteps = 1
+                else
+                    MaxSteps = #pattern
+                    for i = 1, #CycleEvts do
+                        local CycleTime = CycleEvts[i][1]
+                        if CycleTime > LastTime and CycleTime <= CurPos then
+                            Step = Step + 1
+                            if Step > MaxSteps then Step = 1 end
+                            LastTime = CurPos
+                        end
+                    end
+                end
                 local colorIndex = stepColors[groupID]
                 r, g, b, a = table.unpack(pallete[colorIndex])
             end
-
             for _, fade in ipairs(DetectedFades) do
-                if DisplayedLighting == fade.from and CurTime >= fade.startTime and CurTime <= fade.endTime then
+                if DisplayedLighting == fade.from and CurPos >= fade.startTime and CurPos <= fade.endTime then
                     Fade = true
                     if mode== "auto" then
                         fcolorA = autoColor
@@ -347,11 +335,11 @@ local function drawDotMatrix(x0, y0, radius, spacing, mode)
                         fcolorA = pallete[stepColors[groupID] or 1]
                     end
                     
-                    local nextStepColors = lighting[fade.to] and lighting[fade.to][1] or {}
-                    fcolorB = pallete[nextStepColors[groupID] or 1] or {0, 0, 0, 1}
-                    local t = math.min((CurTime - fade.startTime) / (fade.endTime - fade.startTime), 1)
-                    r, g, b, a = fadeInterpolation(fcolorA, fcolorB, t)
-                    break -- only apply the first active fade
+                    local nextStepColorsf = lighting[fade.to] and lighting[fade.to][1] or {}
+                    fcolorB = pallete[nextStepColorsf[groupID] or 1] or {0, 0, 0, 1}
+                    local tf = math.min((CurPos - fade.startTime) / (fade.endTime - fade.startTime), 1)
+                    r, g, b, a = fadeInterpolation(fcolorA, fcolorB, tf)
+                    break
                 end
             end
 
@@ -359,11 +347,11 @@ local function drawDotMatrix(x0, y0, radius, spacing, mode)
             local y = y0 + (row - 1) * spacing
 
             -- Verifying if the light is ON (no black)
-                local isLit = (r + g + b) > 0.15
+                local isLit = (r + g + b) > 0.1
                 if isLit then
-                    -- bloom degradado
-                    local bloomLayers = 4
-                    local bloomMaxRadius = radius * 1.67
+                    -- bloom effect
+                    local bloomLayers = 6
+                    local bloomMaxRadius = radius * 2
                     local bloomAlphaStart = 0.12
 
                     for i = 1, bloomLayers do
@@ -375,7 +363,7 @@ local function drawDotMatrix(x0, y0, radius, spacing, mode)
                 end
 
 
-            gfx.set(r, g, b, a)
+            gfx.set(r, g, b, a*0.8)
             gfx.circle(x, y, radius, true)
         end
     end
@@ -386,44 +374,44 @@ local function loop()
 
     PlayState = rp.GetPlayState()
     if PlayState == 1 then
-        CurTime = rp.GetPlayPosition() - Offset
-        
+        CurPos = rp.GetPlayPosition() 
     else
-        CurTime = rp.GetCursorPosition()
-        if CurTime < LastTime then
-            LastTime = 0
-            Step=1
-        end
+        CurPos = rp.GetCursorPosition()
+        if CurPos < LastTime then
+                LastTime = 0
+                LoopStepTime= 0
+            end
     end
+    _,_,Bpm = reaper.TimeMap_GetTimeSigAtTime(0,CurPos)
     
     if not VenueTrack or rp.CountTrackMediaItems(VenueTrack) == 0 then
         return
     else
         if #LightEvts > 0 then
-            compareCycle()
-            compareLighting()
-            if CurTime < LightEvts[1][1] then
+            parseLighting()
+            if CurPos < LightEvts[1][1] or CurPos < LastTime or CurPos < LoopStepTime then
                 if DisplayedLighting ~= "none" then
                     DisplayedLighting = "none"
-                    LastTime =0
+                    LastTime = 0
                 end
             end
         end
     end
+    
     local mode = LightingMode[DisplayedLighting] or LightingMode.default
-
-    LoopStepDuration = (60 / bpm) * 4
-    FadeDuration = (60 / bpm) *0.7
 
 
 
     gfx.setfont(1, "Arial", 20)
-    gfx.set(0.24, 0.24, 0.24, 1)
-    gfx.rect(0, 0, gfx.w, gfx.h, 1)
+    --gfx.set(0.24, 0.24, 0.24, 1)
+    --gfx.rect(0, 0, gfx.w, gfx.h, 1)
+    local background = gfx.loadimg(1,script_folder.."assets/background.png")
+    gfx.blit(1,1,0,0,0,1000,400,0,0)
+
 
     -- Track Change Button
     gfx.set(1, 1, 1, 1)
-    gfx.x, gfx.y = 50, 30
+    gfx.x, gfx.y = 50, 20
     local btnText = "Track: " .. SelectedTrack
     local btnWidth = gfx.measurestr(btnText)
     gfx.rect(gfx.x - 5, gfx.y - 5, btnWidth + 10, 30, 0)
@@ -432,7 +420,7 @@ local function loop()
     -- Input Detection
     local mouse_now = gfx.mouse_cap & 1
     if mouse_now == 1 and Mouse_last_state == 0 then
-        if gfx.mouse_x > 45 and gfx.mouse_x < 45 + btnWidth + 10 and gfx.mouse_y > 25 and gfx.mouse_y < 55 then
+        if gfx.mouse_x > 40 and gfx.mouse_x < 45 + btnWidth + 10 and gfx.mouse_y > 10 and gfx.mouse_y < 55 then
             SelectedTrackIndex = SelectedTrackIndex + 1
             if SelectedTrackIndex > #TrackOptions then
                 SelectedTrackIndex = 1
@@ -447,23 +435,21 @@ local function loop()
     Mouse_last_state = mouse_now
 
     -- Show current lighting state
-    gfx.x, gfx.y = 220, 30
+    gfx.x, gfx.y = 220, 20
     gfx.drawstr("Current lighting: " .. tostring(DisplayedLighting))
 
-    --gfx.x, gfx.y = 550, 30
-    --gfx.drawstr("Current max steps: " .. tostring(MaxSteps))
+    gfx.x, gfx.y = 220, 50
+    gfx.drawstr("Current bpm: " .. tostring(Bpm))
 
     --show  current lighting step
-    gfx.x, gfx.y = 800, 30
-    gfx.drawstr("Current step: " .. tostring(Step))
+    --gfx.x, gfx.y = 750, 20
+    --gfx.drawstr("Current step: " .. tostring(Step))
 
     --display the lighting mode
-    --gfx.x, gfx.y = 800, 60
+    --gfx.x, gfx.y = 750, 50
     --gfx.drawstr("Current mode: " .. tostring(mode))
 
     
-
-
     -- Draw Dot Matrix
     if #LightEvts > 0 then
         drawDotMatrix(200, 160, radius, distance, mode)
